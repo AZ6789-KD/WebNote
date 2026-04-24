@@ -1,0 +1,1600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>메모장</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;500&family=Gowun+Batang&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════
+   CSS VARIABLES
+════════════════════════════════ */
+:root {
+  --bg:        #f5f0e8;
+  --paper:     #faf7f2;
+  --ink:       #2c2416;
+  --ink-light: #6b5f4e;
+  --ink-faint: #b8aa97;
+  --accent:    #8b6f47;
+  --border:    #ddd5c4;
+  --hover:     #ede8df;
+  --red:       #b94a2c;
+  --sh:        rgba(44,36,22,.08);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg)}
+body{
+  font-family:'Gowun Batang','Noto Serif KR',Georgia,serif;
+  color:var(--ink);min-height:100vh;
+}
+
+/* ════════════════════════════════
+   SCREENS
+════════════════════════════════ */
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex;flex-direction:column;align-items:center}
+
+/* ════════════════════════════════
+   LIST SCREEN — LAYOUT
+════════════════════════════════ */
+#listScreen{
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse at 20% 50%,rgba(139,111,71,.04) 0%,transparent 60%),
+    radial-gradient(ellipse at 80% 20%,rgba(139,111,71,.03) 0%,transparent 50%);
+}
+
+/* — header — */
+.list-header{
+  width:100%;display:flex;justify-content:center;
+  position:sticky;top:0;z-index:50;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(to bottom,var(--bg) 85%,transparent);
+}
+.list-header-inner{
+  width:calc(100%/3);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 0 12px;
+}
+.logo{
+  font-family:'Noto Serif KR',serif;font-size:13px;font-weight:300;
+  letter-spacing:.2em;color:var(--ink-light);text-transform:uppercase;
+  cursor:pointer;transition:color .2s;user-select:none;
+}
+.logo:hover{color:var(--accent)}
+.list-sync-status{
+  font-size:11px;letter-spacing:.05em;
+  color:var(--ink-faint);font-family:'Noto Serif KR',serif;
+  transition:color .4s;
+}
+.list-sync-status.ok{color:var(--accent)}
+.list-sync-status.err{color:var(--red)}
+.list-sync-status.busy{color:var(--ink-light)}
+
+/* — folder tabs — */
+.folder-tabs-wrap{
+  width:100%;display:flex;justify-content:center;
+  border-bottom:1px solid var(--border);
+  background:var(--bg);
+  position:sticky;top:53px;z-index:45;
+}
+.folder-tabs{
+  width:calc(100%/3);
+  display:flex;align-items:flex-end;
+  overflow-x:auto;scrollbar-width:none;
+  gap:0;
+}
+.folder-tabs::-webkit-scrollbar{display:none}
+
+.folder-tab{
+  font-family:'Noto Serif KR',serif;font-size:12px;letter-spacing:.06em;
+  color:var(--ink-faint);background:none;
+  border:none;border-bottom:2px solid transparent;
+  padding:10px 14px 10px;cursor:pointer;
+  transition:color .2s,border-color .2s;
+  white-space:nowrap;display:flex;align-items:center;gap:5px;
+  flex-shrink:0;
+}
+.folder-tab:hover{color:var(--ink-light)}
+.folder-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.folder-tab[data-id="all"]{font-weight:500}
+
+.tab-name{pointer-events:none}
+.tab-del{
+  font-size:14px;line-height:1;
+  opacity:0;transition:opacity .15s;
+  color:var(--ink-faint);cursor:pointer;
+  padding:0 1px;
+}
+.folder-tab:hover .tab-del{opacity:.7}
+.tab-del:hover{color:var(--red)!important;opacity:1!important}
+
+.btn-add-folder{
+  font-family:'Noto Serif KR',serif;font-size:16px;
+  color:var(--ink-faint);background:none;border:none;
+  padding:8px 12px 10px;cursor:pointer;
+  transition:color .2s;flex-shrink:0;line-height:1;
+}
+.btn-add-folder:hover{color:var(--accent)}
+
+/* rename input inside tab */
+.tab-rename-input{
+  width:70px;font-size:12px;font-family:'Noto Serif KR',serif;
+  padding:1px 4px;background:var(--bg);
+  border:1px solid var(--accent);color:var(--ink);outline:none;
+  letter-spacing:.04em;
+}
+
+/* — tag row — */
+.tag-row-wrap{
+  width:100%;display:flex;justify-content:center;
+  background:var(--bg);
+}
+.tag-row-wrap.hidden{display:none}
+.tag-row{
+  width:calc(100%/3);
+  display:flex;gap:6px;flex-wrap:wrap;
+  padding:10px 0 4px;
+}
+.tag-btn{
+  font-family:'Noto Serif KR',serif;font-size:11px;letter-spacing:.04em;
+  color:var(--ink-faint);background:none;
+  border:1px solid var(--border);
+  padding:3px 11px;cursor:pointer;
+  transition:all .15s;border-radius:12px;
+}
+.tag-btn:hover{color:var(--accent);border-color:var(--accent)}
+.tag-btn.active{background:var(--accent);color:var(--bg);border-color:var(--accent)}
+
+/* — list body — */
+.list-body{width:calc(100%/3);padding:20px 0 120px}
+
+.section-label{
+  font-size:11px;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--ink-faint);font-family:'Noto Serif KR',serif;
+  padding:12px 0;border-bottom:1px solid var(--border);
+  margin-bottom:4px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+.sort-btns{display:flex;gap:0;flex-shrink:0}
+.btn-sort{
+  font-family:'Noto Serif KR',serif;font-size:11px;letter-spacing:.08em;
+  color:var(--ink-faint);background:none;border:none;cursor:pointer;
+  padding:2px 8px;transition:color .2s;text-transform:none;
+  border-left:1px solid var(--border);
+}
+.btn-sort:first-child{border-left:none}
+.btn-sort:hover{color:var(--ink-light)}
+.btn-sort.active{color:var(--accent);font-weight:500}
+
+.memo-item{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 0;border-bottom:1px solid var(--border);
+  cursor:pointer;transition:background .15s;gap:12px;
+}
+.memo-item:hover .memo-title{color:var(--accent)}
+.memo-left{flex:1;min-width:0}
+.memo-title{
+  font-size:15px;font-weight:400;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:color .2s;margin-bottom:3px;
+}
+.memo-meta{
+  display:flex;align-items:center;gap:8px;
+  margin-bottom:3px;
+}
+.memo-folder-badge{
+  font-size:10px;color:var(--ink-faint);
+  font-family:'Noto Serif KR',serif;letter-spacing:.03em;
+  background:var(--hover);padding:1px 7px;border-radius:10px;
+  flex-shrink:0;
+}
+.memo-preview{
+  font-size:12px;color:var(--ink-faint);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  line-height:1.6;
+}
+.memo-date{
+  font-size:11px;color:var(--ink-faint);
+  font-family:'Noto Serif KR',serif;letter-spacing:.02em;
+  white-space:nowrap;flex-shrink:0;
+}
+.memo-del{
+  background:none;border:none;cursor:pointer;
+  font-size:14px;color:var(--ink-faint);padding:4px 6px;
+  transition:color .2s;flex-shrink:0;line-height:1;
+}
+.memo-del:hover{color:var(--red)}
+
+.empty-state{
+  text-align:center;padding:60px 0;
+  color:var(--ink-faint);font-size:14px;line-height:2.4;
+}
+.empty-state span{font-size:28px;display:block;margin-bottom:12px;opacity:.4}
+
+/* — list footer — */
+.list-footer{
+  width:100%;display:flex;justify-content:center;
+  position:fixed;bottom:0;z-index:50;
+}
+.list-footer-inner{
+  width:calc(100%/3);padding:14px 0 22px;
+  border-top:1px solid var(--border);
+  background:linear-gradient(to top,var(--bg) 80%,transparent);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.memo-count{font-size:11px;color:var(--ink-faint);letter-spacing:.05em}
+.btn-new{
+  font-family:'Noto Serif KR',serif;font-size:12px;letter-spacing:.1em;
+  background:var(--ink);color:var(--bg);border:none;
+  padding:9px 20px;cursor:pointer;transition:background .2s;
+  text-transform:uppercase;
+}
+.btn-new:hover{background:var(--accent)}
+
+/* ════════════════════════════════
+   EDITOR SCREEN
+════════════════════════════════ */
+#editorScreen{
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse at 20% 50%,rgba(139,111,71,.04) 0%,transparent 60%),
+    radial-gradient(ellipse at 80% 20%,rgba(139,111,71,.03) 0%,transparent 50%);
+}
+
+.editor-header{
+  width:100%;display:flex;justify-content:center;
+  position:sticky;top:0;z-index:50;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(to bottom,var(--bg) 85%,transparent);
+}
+.editor-header-inner{
+  width:calc(100%/3);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:18px 0 12px;gap:12px;
+}
+.btn-back{
+  background:none;border:none;cursor:pointer;
+  font-family:'Noto Serif KR',serif;font-size:12px;
+  color:var(--ink-light);letter-spacing:.05em;padding:0;
+  transition:color .2s;flex-shrink:0;
+}
+.btn-back:hover{color:var(--accent)}
+
+.title-input{
+  flex:1;background:transparent;border:none;outline:none;
+  font-family:'Noto Serif KR',serif;font-size:13px;font-weight:500;
+  color:var(--ink);letter-spacing:.03em;
+  border-bottom:1px solid transparent;transition:border-color .2s;
+  padding:2px 0;
+}
+.title-input:focus{border-bottom-color:var(--border)}
+.title-input::placeholder{color:var(--ink-faint)}
+
+.editor-status{
+  font-size:11px;color:var(--ink-faint);
+  font-family:'Noto Serif KR',serif;letter-spacing:.05em;
+  transition:color .4s;white-space:nowrap;flex-shrink:0;
+}
+.editor-status.ok{color:var(--accent)}
+.editor-status.err{color:var(--red)}
+.editor-status.busy{color:var(--ink-light)}
+
+.header-right{
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+.btn-view-toggle{
+  font-family:'Noto Serif KR',serif;font-size:11px;letter-spacing:.1em;
+  color:var(--ink-light);background:none;
+  border:1px solid var(--border);
+  padding:4px 10px;cursor:pointer;
+  transition:color .2s,border-color .2s,background .2s;
+  white-space:nowrap;
+}
+.btn-view-toggle:hover{color:var(--accent);border-color:var(--accent)}
+.btn-view-toggle.active{
+  background:var(--ink);color:var(--bg);border-color:var(--ink);
+}
+.btn-view-toggle.active:hover{background:var(--accent);border-color:var(--accent)}
+
+/* — toolbar — */
+.md-toolbar{
+  width:100%;display:flex;justify-content:center;
+  border-bottom:1px solid var(--border);
+  background:var(--bg);
+  position:sticky;top:57px;z-index:40;
+  transition:opacity .2s;
+}
+.md-toolbar.hidden{opacity:0;pointer-events:none}
+.md-toolbar-inner{
+  width:calc(100%/3);
+  display:flex;align-items:center;gap:2px;
+  padding:7px 0;
+}
+.md-btn{
+  font-family:'Noto Serif KR',serif;font-size:12px;
+  color:var(--ink-light);background:none;border:none;
+  cursor:pointer;padding:4px 9px;border-radius:2px;
+  transition:background .15s,color .15s;line-height:1;
+  user-select:none;
+}
+.md-btn:hover{background:var(--hover);color:var(--ink)}
+.md-btn.active{background:var(--ink);color:var(--bg)}
+.md-divider{
+  width:1px;height:14px;background:var(--border);
+  margin:0 4px;flex-shrink:0;
+}
+
+/* — editor body — */
+.editor-wrap{
+  width:calc(100%/3);min-height:calc(100vh - 140px);
+  padding:0 0 80px;display:flex;flex-direction:column;
+}
+.ornament{
+  text-align:center;color:var(--ink-faint);font-size:13px;
+  letter-spacing:.3em;padding:10px 0;user-select:none;opacity:.5;
+}
+.editor{
+  flex:1;width:100%;min-height:calc(100vh - 200px);
+  background:transparent;border:none;outline:none;resize:none;
+  font-family:'Gowun Batang','Noto Serif KR',Georgia,serif;
+  font-size:17px;line-height:2.2;color:var(--ink);
+  letter-spacing:.01em;word-break:keep-all;overflow-wrap:break-word;
+  padding:24px 0 40px;caret-color:var(--accent);
+}
+.editor::placeholder{color:var(--ink-faint);font-style:italic}
+.editor::-webkit-scrollbar{display:none}
+.editor.hidden{display:none}
+
+/* — view panel — */
+.view-panel{
+  flex:1;width:100%;min-height:calc(100vh - 200px);
+  padding:24px 0 40px;
+  font-family:'Gowun Batang','Noto Serif KR',Georgia,serif;
+  line-height:2.2;color:var(--ink);
+  letter-spacing:.01em;word-break:keep-all;overflow-wrap:break-word;
+  cursor:default;user-select:text;
+}
+.view-panel.hidden{display:none}
+.vp-h1{
+  font-family:'Noto Serif KR',serif;font-size:1.45em;font-weight:500;
+  color:var(--ink);letter-spacing:.04em;
+  margin:1.2em 0 .5em;border-bottom:1px solid var(--border);padding-bottom:.3em;
+}
+.vp-h2{
+  font-family:'Noto Serif KR',serif;font-size:1.15em;font-weight:500;
+  color:var(--ink);letter-spacing:.03em;margin:1em 0 .4em;
+}
+.vp-p{margin-bottom:.3em;line-height:2.2}
+.vp-gap{height:1em}
+.vp-code{
+  font-family:'Courier New',monospace;font-size:.88em;
+  background:var(--hover);color:var(--accent);
+  padding:1px 5px;border-radius:2px;letter-spacing:0;
+}
+.view-panel blockquote{
+  border-left:3px solid var(--accent);
+  margin:1em 0;padding:.4em 0 .4em 1em;
+  color:var(--ink-light);font-style:italic;
+}
+
+/* — editor footer — */
+.editor-footer{
+  width:100%;display:flex;justify-content:center;
+  position:fixed;bottom:0;z-index:50;
+  transition:opacity .3s;
+}
+.editor-footer.view-mode{opacity:0;pointer-events:none}
+.editor-footer-inner{
+  width:calc(100%/3);padding:14px 0 22px;
+  border-top:1px solid var(--border);
+  background:linear-gradient(to top,var(--bg) 80%,transparent);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.char-info{font-size:11px;color:var(--ink-faint);letter-spacing:.03em}
+.font-size-ctrl{
+  display:flex;align-items:center;gap:8px;
+}
+.fs-btn{
+  font-family:'Noto Serif KR',serif;font-size:11px;letter-spacing:.04em;
+  color:var(--ink-light);background:none;border:none;cursor:pointer;
+  padding:4px 6px;transition:color .2s;line-height:1;
+}
+.fs-btn:hover{color:var(--accent)}
+.fs-val{
+  font-size:11px;color:var(--ink-faint);
+  font-family:'Noto Serif KR',serif;letter-spacing:.03em;
+  min-width:22px;text-align:center;
+}
+.editor-btns{display:flex;gap:16px;align-items:center}
+.btn-txt{
+  font-family:'Noto Serif KR',serif;font-size:11px;letter-spacing:.08em;
+  color:var(--ink-faint);background:none;border:none;cursor:pointer;
+  padding:4px 0;transition:color .2s;
+}
+.btn-txt:hover{color:var(--accent)}
+.btn-save{
+  font-family:'Noto Serif KR',serif;font-size:11px;letter-spacing:.1em;
+  color:var(--ink-light);font-weight:500;background:none;border:none;
+  cursor:pointer;padding:4px 0;transition:color .2s;
+}
+.btn-save:hover{color:var(--accent)}
+
+/* ════════════════════════════════
+   SETUP MODAL
+════════════════════════════════ */
+.overlay{
+  position:fixed;inset:0;z-index:900;
+  background:rgba(44,36,22,.5);
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(3px);animation:fadeIn .25s ease both;
+}
+.overlay.hidden{display:none}
+.modal{
+  background:var(--paper);width:min(520px,94vw);
+  border:1px solid var(--border);box-shadow:0 16px 60px var(--sh);
+  padding:40px 36px 32px;font-family:'Noto Serif KR',serif;
+  animation:slideUp .3s ease both;
+}
+.modal h2{
+  font-size:15px;font-weight:500;letter-spacing:.12em;
+  color:var(--ink);margin-bottom:6px;text-transform:uppercase;
+}
+.modal .subtitle{
+  font-size:12px;color:var(--ink-faint);
+  line-height:1.9;margin-bottom:24px;letter-spacing:.02em;
+}
+.modal .subtitle a{color:var(--accent);text-decoration:none}
+.modal .subtitle a:hover{text-decoration:underline}
+.modal .steps{
+  background:var(--hover);padding:14px 16px;margin-bottom:20px;
+  font-size:11px;color:var(--ink-light);line-height:2.1;letter-spacing:.02em;
+  border-left:2px solid var(--accent);
+}
+.modal .steps code{
+  font-family:'Courier New',monospace;font-size:10px;
+  background:var(--border);padding:1px 4px;
+}
+.field{margin-bottom:20px}
+.field label{
+  display:block;font-size:11px;letter-spacing:.1em;
+  color:var(--ink-light);text-transform:uppercase;margin-bottom:7px;
+}
+.field input{
+  width:100%;background:var(--bg);border:1px solid var(--border);
+  font-family:'Noto Serif KR',serif;font-size:13px;color:var(--ink);
+  padding:10px 12px;outline:none;transition:border-color .2s;
+}
+.field input:focus{border-color:var(--accent)}
+.field .hint{font-size:11px;color:var(--ink-faint);margin-top:5px;line-height:1.6}
+.field .hint a{color:var(--accent);text-decoration:none}
+.modal-btns{display:flex;gap:12px;margin-top:28px;justify-content:flex-end}
+.btn-primary{
+  font-family:'Noto Serif KR',serif;font-size:12px;letter-spacing:.1em;
+  background:var(--ink);color:var(--bg);border:none;padding:10px 24px;
+  cursor:pointer;transition:background .2s;text-transform:uppercase;
+}
+.btn-primary:hover{background:var(--accent)}
+.btn-secondary{
+  font-family:'Noto Serif KR',serif;font-size:12px;letter-spacing:.1em;
+  background:none;color:var(--ink-faint);border:1px solid var(--border);
+  padding:10px 20px;cursor:pointer;transition:color .2s,border-color .2s;
+}
+.btn-secondary:hover{color:var(--ink);border-color:var(--ink-light)}
+
+/* ════════════════════════════════
+   TOAST & SPINNER
+════════════════════════════════ */
+.toast{
+  position:fixed;bottom:64px;left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:var(--bg);
+  font-family:'Noto Serif KR',serif;font-size:12px;letter-spacing:.05em;
+  padding:8px 20px;border-radius:2px;
+  opacity:0;transition:opacity .3s,transform .3s;
+  pointer-events:none;z-index:9999;white-space:nowrap;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.spinner{
+  display:inline-block;width:12px;height:12px;
+  border:1.5px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .7s linear infinite;
+  vertical-align:middle;margin-right:5px;
+}
+
+/* ════════════════════════════════
+   ANIMATIONS
+════════════════════════════════ */
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* ════════════════════════════════
+   MOBILE
+════════════════════════════════ */
+@media(max-width:768px){
+  .list-header-inner,
+  .list-footer-inner,
+  .editor-header-inner,
+  .editor-footer-inner{
+    width:100%;padding-left:20px;padding-right:20px;
+  }
+  .list-body{width:100%;padding:16px 20px 120px}
+  .folder-tabs{width:100%;padding-left:16px}
+  .tag-row{width:100%;padding-left:20px;padding-right:20px}
+  .editor-wrap{width:100%;padding:0 20px 80px}
+  .editor-wrap .ornament:first-child{padding-top:11.11vh}
+  .view-panel{padding-top:11.11vh}
+  .editor-header,.editor-footer,
+  .list-header,.list-footer,
+  .folder-tabs-wrap,.tag-row-wrap{width:100%}
+  .editor{font-size:16px;line-height:2.1}
+  .md-toolbar-inner{width:100%;padding-left:16px;padding-right:16px}
+  .md-toolbar{top:53px}
+  .tab-del{opacity:.5!important}
+  .modal{padding:32px 22px 24px}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ SETUP MODAL ══ -->
+<div class="overlay hidden" id="overlay">
+  <div class="modal">
+    <h2>GitHub Gist 연결</h2>
+    <p class="subtitle">
+      토큰 1개 + 마스터 Gist ID 1개로<br>
+      모든 기기에서 폴더·메모가 자동으로 동기화됩니다.
+    </p>
+    <div class="steps">
+      1. <a href="https://github.com/settings/tokens/new?scopes=gist&description=Notepad" target="_blank">
+           GitHub → Settings → Developer settings → Personal access tokens
+         </a><br>
+      2. <strong>gist</strong> 권한만 체크 후 토큰 생성 (<code>ghp_...</code>)<br>
+      3. 처음 사용 시 Gist ID를 비워두면 자동 생성됩니다<br>
+      4. 다른 기기 연동: 아래에 마스터 Gist ID를 입력하세요
+    </div>
+    <div class="field">
+      <label>Personal Access Token</label>
+      <input type="password" id="inputToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+      <p class="hint">브라우저에만 저장되며 외부로 전송되지 않습니다.</p>
+    </div>
+    <div class="field">
+      <label>마스터 Gist ID
+        <span style="font-weight:300;font-size:10px;text-transform:none">— 다른 기기에서 이미 생성했다면 입력</span>
+      </label>
+      <input type="text" id="inputMasterGistId" placeholder="비워두면 자동 생성됩니다" autocomplete="off">
+      <p class="hint">
+        목록 화면 상단 동기화 상태를 클릭하면 Gist ID를 확인할 수 있습니다.
+      </p>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-secondary" id="btnCancel">취소</button>
+      <button class="btn-primary" id="btnConnect">연결하기</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     LIST SCREEN
+══════════════════════════════════ -->
+<div class="screen" id="listScreen">
+
+  <!-- header -->
+  <div class="list-header">
+    <div class="list-header-inner">
+      <span class="logo" id="logoBtn">MEMO</span>
+      <span class="list-sync-status" id="listSyncStatus">—</span>
+    </div>
+  </div>
+
+  <!-- folder tabs -->
+  <div class="folder-tabs-wrap">
+    <div class="folder-tabs" id="folderTabs">
+      <button class="folder-tab active" data-id="all">전체</button>
+      <!-- dynamic tabs injected here -->
+      <button class="btn-add-folder" id="btnAddFolder" title="폴더 추가">＋</button>
+    </div>
+  </div>
+
+  <!-- tag row -->
+  <div class="tag-row-wrap hidden" id="tagRowWrap">
+    <div class="tag-row" id="tagRow"></div>
+  </div>
+
+  <!-- list body -->
+  <div class="list-body">
+    <div class="section-label">
+      <span>메모 목록</span>
+      <div class="sort-btns">
+        <button class="btn-sort active" id="sortByDate">날짜순</button>
+        <button class="btn-sort" id="sortByName">이름순</button>
+      </div>
+    </div>
+    <div id="memoList">
+      <div class="empty-state">
+        <span>✦</span>
+        불러오는 중…
+      </div>
+    </div>
+  </div>
+
+  <!-- footer -->
+  <div class="list-footer">
+    <div class="list-footer-inner">
+      <span class="memo-count" id="memoCount"></span>
+      <button class="btn-new" id="btnNew">＋ 새 메모</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════
+     EDITOR SCREEN
+══════════════════════════════════ -->
+<div class="screen" id="editorScreen">
+
+  <!-- header -->
+  <div class="editor-header">
+    <div class="editor-header-inner">
+      <button class="btn-back" id="btnBack">← 목록</button>
+      <input class="title-input" id="titleInput" placeholder="제목 없음" maxlength="80">
+      <div class="header-right">
+        <span class="editor-status" id="editorStatus">—</span>
+        <button class="btn-view-toggle" id="btnViewToggle" title="보기 모드">보기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- markdown toolbar -->
+  <div class="md-toolbar" id="mdToolbar">
+    <div class="md-toolbar-inner">
+      <button class="md-btn" data-md="bold"     title="굵게 (Ctrl+B)"><b>B</b></button>
+      <button class="md-btn" data-md="italic"   title="기울이기 (Ctrl+I)"><i>I</i></button>
+      <button class="md-btn" data-md="strike"   title="취소선 (Ctrl+D)"><s>S</s></button>
+      <button class="md-btn" data-md="underline" title="밑줄 (Ctrl+U)"><u>U</u></button>
+      <span class="md-divider"></span>
+      <button class="md-btn" data-md="h1"       title="제목 1">H1</button>
+      <button class="md-btn" data-md="h2"       title="제목 2">H2</button>
+      <span class="md-divider"></span>
+      <button class="md-btn" data-md="code"     title="코드"><code style="font-size:11px">{ }</code></button>
+      <button class="md-btn" data-md="quote"    title="인용">❝</button>
+    </div>
+  </div>
+
+  <!-- editor body -->
+  <div class="editor-wrap">
+    <div class="ornament">· · ·</div>
+    <textarea class="editor" id="editor"
+      placeholder="여기에 글을 쓰세요…"
+      spellcheck="false" autocomplete="off"
+      autocorrect="off" autocapitalize="off"
+    ></textarea>
+    <div class="view-panel hidden" id="viewPanel"></div>
+    <div class="ornament">· · ·</div>
+  </div>
+
+  <!-- footer -->
+  <div class="editor-footer" id="editorFooter">
+    <div class="editor-footer-inner">
+      <span class="char-info" id="charInfo">0자</span>
+      <div class="font-size-ctrl">
+        <button class="fs-btn" id="btnFsMinus">A−</button>
+        <span class="fs-val" id="fsVal">17</span>
+        <button class="fs-btn" id="btnFsPlus">A+</button>
+      </div>
+      <div class="editor-btns">
+        <button class="btn-txt" id="btnDelete">삭제</button>
+        <button class="btn-save" id="btnSave">↑ 저장</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════════════════════════════
+   CONSTANTS & STORAGE KEYS
+════════════════════════════════ */
+const K_TOKEN   = 'gist_token';
+const K_MASTER  = 'master_gist_id';
+const K_SORT    = 'memo_sort';
+const K_FS      = 'memo_font_size';
+const K_CACHE   = 'folder_cache';
+
+/* ════════════════════════════════
+   STATE
+════════════════════════════════ */
+let token        = localStorage.getItem(K_TOKEN)  || '';
+let masterGistId = localStorage.getItem(K_MASTER) || '';
+
+// folders: [{ id, name, gistId }]
+let folders = [];
+// memosByFolder: { folderId: { memoId: { title, content, updatedAt } } }
+let memosByFolder = {};
+
+let currentFolderId   = 'all';   // active tab
+let currentMemoId     = null;    // memo being edited
+let currentMemoFolder = null;    // folderId of memo being edited
+
+let selectedTags = new Set();
+let sortMode     = localStorage.getItem(K_SORT) || 'date';
+let syncing      = false;
+let isViewMode   = false;
+
+let fontSize = parseInt(localStorage.getItem(K_FS)) || 17;
+const FS_STEPS = [10,11,12,13,14,15,16,17,18,19,20,22,24,26,28];
+
+/* ════════════════════════════════
+   DOM REFS
+════════════════════════════════ */
+const listScreen     = document.getElementById('listScreen');
+const editorScreen   = document.getElementById('editorScreen');
+const overlay        = document.getElementById('overlay');
+const logoBtn        = document.getElementById('logoBtn');
+const listSyncStatus = document.getElementById('listSyncStatus');
+const memoListEl     = document.getElementById('memoList');
+const memoCount      = document.getElementById('memoCount');
+const btnNew         = document.getElementById('btnNew');
+const folderTabsEl   = document.getElementById('folderTabs');
+const btnAddFolder   = document.getElementById('btnAddFolder');
+const tagRowWrap     = document.getElementById('tagRowWrap');
+const tagRow         = document.getElementById('tagRow');
+const btnBack        = document.getElementById('btnBack');
+const titleInput     = document.getElementById('titleInput');
+const editorStatus   = document.getElementById('editorStatus');
+const editor         = document.getElementById('editor');
+const viewPanel      = document.getElementById('viewPanel');
+const editorFooter   = document.getElementById('editorFooter');
+const mdToolbar      = document.getElementById('mdToolbar');
+const charInfo       = document.getElementById('charInfo');
+const btnSave        = document.getElementById('btnSave');
+const btnDelete      = document.getElementById('btnDelete');
+const btnViewToggle  = document.getElementById('btnViewToggle');
+const btnFsMinus     = document.getElementById('btnFsMinus');
+const btnFsPlus      = document.getElementById('btnFsPlus');
+const fsVal          = document.getElementById('fsVal');
+const inputToken     = document.getElementById('inputToken');
+const inputMasterGistId = document.getElementById('inputMasterGistId');
+const btnCancel      = document.getElementById('btnCancel');
+const btnConnect     = document.getElementById('btnConnect');
+const toast          = document.getElementById('toast');
+const sortByDate     = document.getElementById('sortByDate');
+const sortByName     = document.getElementById('sortByName');
+
+/* ════════════════════════════════
+   ROUTING
+════════════════════════════════ */
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(name + 'Screen').classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+/* ════════════════════════════════
+   CACHE
+════════════════════════════════ */
+function saveCache() {
+  try {
+    localStorage.setItem(K_CACHE, JSON.stringify({ folders, memos: memosByFolder }));
+  } catch(e) { /* quota */ }
+}
+
+function loadCache() {
+  try {
+    const s = localStorage.getItem(K_CACHE);
+    if (!s) return null;
+    return JSON.parse(s);
+  } catch { return null; }
+}
+
+/* ════════════════════════════════
+   INIT
+════════════════════════════════ */
+(async () => {
+  // Load from cache first for instant display
+  const cached = loadCache();
+  if (cached) {
+    folders = cached.folders || [];
+    memosByFolder = cached.memos || {};
+  }
+  showScreen('list');
+  renderFolderTabs();
+  renderTagRow();
+  renderList();
+
+  if (!token) {
+    setListStatus('설정 필요 — 로고를 클릭하세요', '');
+    openModal();
+    return;
+  }
+  if (!masterGistId) {
+    openModal();
+    return;
+  }
+  await syncAll();
+})();
+
+/* ════════════════════════════════
+   GITHUB GIST API
+════════════════════════════════ */
+async function apiReq(url, method = 'GET', body = null) {
+  const opts = {
+    method,
+    headers: {
+      Authorization: `token ${token}`,
+      Accept: 'application/vnd.github+json',
+      'Content-Type': 'application/json'
+    }
+  };
+  if (body !== null) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  if (res.status === 204) return null;
+  if (!res.ok) {
+    let msg = 'HTTP ' + res.status;
+    try { const e = await res.json(); msg = e.message || msg; } catch {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+// Master Gist — contains folders.json
+async function fetchMasterGist() {
+  const data = await apiReq(`https://api.github.com/gists/${masterGistId}`);
+  const raw = data.files['folders.json']?.content || '[]';
+  return JSON.parse(raw);
+}
+
+async function createMasterGist() {
+  const data = await apiReq('https://api.github.com/gists', 'POST', {
+    description: '메모장 마스터 — 폴더 목록',
+    public: false,
+    files: { 'folders.json': { content: '[]' } }
+  });
+  return data.id;
+}
+
+async function updateMasterGist() {
+  await apiReq(`https://api.github.com/gists/${masterGistId}`, 'PATCH', {
+    files: { 'folders.json': { content: JSON.stringify(folders, null, 2) } }
+  });
+}
+
+// Folder Gist — contains memo_data.json
+async function createFolderGist(name) {
+  const data = await apiReq('https://api.github.com/gists', 'POST', {
+    description: `메모장 폴더 — ${name}`,
+    public: false,
+    files: { 'memo_data.json': { content: '{}' } }
+  });
+  return data.id;
+}
+
+async function fetchFolderGist(gistId) {
+  const data = await apiReq(`https://api.github.com/gists/${gistId}`);
+  const raw = data.files['memo_data.json']?.content || '{}';
+  return JSON.parse(raw);
+}
+
+async function updateFolderGist(gistId, memosObj) {
+  await apiReq(`https://api.github.com/gists/${gistId}`, 'PATCH', {
+    files: { 'memo_data.json': { content: JSON.stringify(memosObj, null, 2) } }
+  });
+}
+
+async function deleteFolderGist(gistId) {
+  await apiReq(`https://api.github.com/gists/${gistId}`, 'DELETE');
+}
+
+/* ════════════════════════════════
+   SYNC ALL
+════════════════════════════════ */
+async function syncAll() {
+  setListStatus('<span class="spinner"></span>동기화 중…', 'busy');
+  try {
+    if (!masterGistId) {
+      masterGistId = await createMasterGist();
+      localStorage.setItem(K_MASTER, masterGistId);
+      folders = [];
+      memosByFolder = {};
+      setListStatus('연결 완료 ✓', 'ok');
+    } else {
+      folders = await fetchMasterGist();
+      memosByFolder = {};
+      await Promise.all(folders.map(async f => {
+        try {
+          memosByFolder[f.id] = await fetchFolderGist(f.gistId);
+        } catch(e) {
+          memosByFolder[f.id] = {};
+        }
+      }));
+      setListStatus('동기화 완료 ✓', 'ok');
+    }
+    saveCache();
+  } catch(e) {
+    setListStatus('오류: ' + e.message, 'err');
+    showToast('동기화 실패: ' + e.message);
+  }
+  renderFolderTabs();
+  renderTagRow();
+  renderList();
+}
+
+/* ════════════════════════════════
+   FOLDER TABS
+════════════════════════════════ */
+function renderFolderTabs() {
+  // Remove existing dynamic tabs
+  folderTabsEl.querySelectorAll('.folder-tab[data-id]:not([data-id="all"])').forEach(el => el.remove());
+
+  const addBtn = document.getElementById('btnAddFolder');
+  folders.forEach(f => {
+    const tab = document.createElement('button');
+    tab.className = 'folder-tab' + (currentFolderId === f.id ? ' active' : '');
+    tab.dataset.id = f.id;
+    tab.innerHTML =
+      `<span class="tab-name">${escHtml(f.name)}</span>` +
+      `<span class="tab-del" title="폴더 삭제">×</span>`;
+
+    // Select folder
+    tab.addEventListener('click', e => {
+      if (e.target.classList.contains('tab-del')) return;
+      currentFolderId = f.id;
+      selectedTags.clear();
+      renderFolderTabs();
+      renderTagRow();
+      renderList();
+    });
+
+    // Delete folder (via ×)
+    tab.querySelector('.tab-del').addEventListener('click', e => {
+      e.stopPropagation();
+      deleteFolder(f.id);
+    });
+
+    // Rename on double-click
+    tab.querySelector('.tab-name').addEventListener('dblclick', e => {
+      e.stopPropagation();
+      startRenameFolder(f.id, tab);
+    });
+
+    folderTabsEl.insertBefore(tab, addBtn);
+  });
+
+  // Update 전체 tab
+  const allTab = folderTabsEl.querySelector('[data-id="all"]');
+  if (allTab) allTab.classList.toggle('active', currentFolderId === 'all');
+}
+
+// 전체 tab click
+folderTabsEl.querySelector('[data-id="all"]').addEventListener('click', () => {
+  currentFolderId = 'all';
+  selectedTags.clear();
+  renderFolderTabs();
+  renderTagRow();
+  renderList();
+});
+
+btnAddFolder.addEventListener('click', addFolder);
+
+function startRenameFolder(folderId, tabEl) {
+  const nameSpan = tabEl.querySelector('.tab-name');
+  const currentName = folders.find(f => f.id === folderId)?.name || '';
+  const input = document.createElement('input');
+  input.className = 'tab-rename-input';
+  input.value = currentName;
+  nameSpan.replaceWith(input);
+  input.focus(); input.select();
+
+  const finish = () => {
+    const newName = input.value.trim();
+    if (newName && newName !== currentName) renameFolder(folderId, newName);
+    else renderFolderTabs();
+  };
+  input.addEventListener('blur', finish);
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+    if (e.key === 'Escape') { input.value = currentName; input.blur(); }
+  });
+}
+
+async function addFolder() {
+  const name = prompt('새 폴더 이름을 입력하세요:');
+  if (!name || !name.trim()) return;
+  if (!token) { openModal(); return; }
+
+  setListStatus('<span class="spinner"></span>폴더 생성 중…', 'busy');
+  try {
+    const gistId = await createFolderGist(name.trim());
+    const newFolder = {
+      id: 'f' + Date.now() + Math.random().toString(36).slice(2,5),
+      name: name.trim(),
+      gistId
+    };
+    folders.push(newFolder);
+    memosByFolder[newFolder.id] = {};
+    await updateMasterGist();
+    saveCache();
+    setListStatus('동기화 완료 ✓', 'ok');
+    showToast(`"${newFolder.name}" 폴더가 생성되었습니다`);
+  } catch(e) {
+    setListStatus('오류: ' + e.message, 'err');
+    showToast('폴더 생성 실패: ' + e.message);
+  }
+  renderFolderTabs();
+  renderTagRow();
+  renderList();
+}
+
+async function deleteFolder(folderId) {
+  const f = folders.find(x => x.id === folderId);
+  if (!f) return;
+  const cnt = Object.keys(memosByFolder[folderId] || {}).length;
+  const msg = cnt > 0
+    ? `"${f.name}" 폴더와 메모 ${cnt}개를 모두 삭제합니까?\n이 작업은 되돌릴 수 없습니다.`
+    : `"${f.name}" 폴더를 삭제합니까?`;
+  if (!confirm(msg)) return;
+
+  if (currentFolderId === folderId) currentFolderId = 'all';
+  folders = folders.filter(x => x.id !== folderId);
+  delete memosByFolder[folderId];
+
+  renderFolderTabs();
+  renderTagRow();
+  renderList();
+
+  if (token && f.gistId) {
+    try {
+      await deleteFolderGist(f.gistId);
+      await updateMasterGist();
+      saveCache();
+      showToast(`"${f.name}" 폴더가 삭제되었습니다`);
+    } catch(e) {
+      showToast('Gist 삭제 오류: ' + e.message);
+    }
+  }
+}
+
+async function renameFolder(folderId, newName) {
+  const f = folders.find(x => x.id === folderId);
+  if (!f) return;
+  f.name = newName;
+  renderFolderTabs();
+  if (token && masterGistId) {
+    try {
+      await updateMasterGist();
+      saveCache();
+      showToast(`폴더 이름이 "${newName}"으로 변경되었습니다`);
+    } catch(e) { showToast('이름 변경 실패: ' + e.message); }
+  }
+}
+
+/* ════════════════════════════════
+   TAGS
+════════════════════════════════ */
+function extractTags(title) {
+  return [...(title || '').matchAll(/\[([^\]]+)\]/g)].map(m => m[1]);
+}
+
+function getTagsForCurrentView() {
+  const set = new Set();
+  if (currentFolderId === 'all') {
+    for (const memos of Object.values(memosByFolder))
+      for (const m of Object.values(memos))
+        extractTags(m.title).forEach(t => set.add(t));
+  } else {
+    for (const m of Object.values(memosByFolder[currentFolderId] || {}))
+      extractTags(m.title).forEach(t => set.add(t));
+  }
+  return [...set];
+}
+
+function renderTagRow() {
+  const tags = getTagsForCurrentView();
+  if (tags.length === 0) {
+    tagRowWrap.classList.add('hidden');
+    selectedTags.clear();
+    return;
+  }
+  tagRowWrap.classList.remove('hidden');
+  tagRow.innerHTML = '';
+  tags.forEach(tag => {
+    const btn = document.createElement('button');
+    btn.className = 'tag-btn' + (selectedTags.has(tag) ? ' active' : '');
+    btn.textContent = '#' + tag;
+    btn.addEventListener('click', () => {
+      selectedTags.has(tag) ? selectedTags.delete(tag) : selectedTags.add(tag);
+      renderTagRow();
+      renderList();
+    });
+    tagRow.appendChild(btn);
+  });
+}
+
+/* ════════════════════════════════
+   LIST RENDERING
+════════════════════════════════ */
+function getFilteredSortedMemos() {
+  let entries = [];
+
+  if (currentFolderId === 'all') {
+    for (const [fId, memos] of Object.entries(memosByFolder))
+      for (const [mId, m] of Object.entries(memos))
+        entries.push([mId, { ...m, folderId: fId }]);
+  } else {
+    for (const [mId, m] of Object.entries(memosByFolder[currentFolderId] || {}))
+      entries.push([mId, { ...m, folderId: currentFolderId }]);
+  }
+
+  // Tag filter
+  if (selectedTags.size > 0) {
+    entries = entries.filter(([, m]) => {
+      const tags = extractTags(m.title || '');
+      return [...selectedTags].every(t => tags.includes(t));
+    });
+  }
+
+  // Sort
+  entries.sort(([, a], [, b]) => {
+    if (sortMode === 'name')
+      return (a.title || '').localeCompare(b.title || '', 'ko');
+    return (b.updatedAt || 0) - (a.updatedAt || 0);
+  });
+
+  return entries;
+}
+
+function renderList() {
+  const entries = getFilteredSortedMemos();
+  const total = entries.length;
+  memoCount.textContent = total ? total + '개의 메모' : '';
+
+  if (total === 0) {
+    memoListEl.innerHTML = `
+      <div class="empty-state">
+        <span>✦</span>
+        ${currentFolderId === 'all' && folders.length === 0
+          ? '＋버튼으로 폴더를 만들고<br>새 메모를 작성해 보세요.'
+          : '이 폴더에 메모가 없습니다.<br>오른쪽 아래 버튼으로 첫 메모를 만드세요.'}
+      </div>`;
+    return;
+  }
+
+  const showFolderBadge = currentFolderId === 'all' && folders.length > 1;
+  memoListEl.innerHTML = '';
+
+  entries.forEach(([memoId, m]) => {
+    const f = folders.find(x => x.id === m.folderId);
+    const preview = (m.content || '').replace(/\s+/g,' ').trim().slice(0,60);
+    const date = m.updatedAt ? fmtDate(m.updatedAt) : '';
+
+    const item = document.createElement('div');
+    item.className = 'memo-item';
+
+    const badgeHtml = showFolderBadge && f
+      ? `<span class="memo-folder-badge">${escHtml(f.name)}</span>`
+      : '';
+
+    item.innerHTML = `
+      <div class="memo-left">
+        <div class="memo-title">${escHtml(m.title || '제목 없음')}</div>
+        ${badgeHtml ? `<div class="memo-meta">${badgeHtml}</div>` : ''}
+        <div class="memo-preview">${escHtml(preview) || '(내용 없음)'}</div>
+      </div>
+      <span class="memo-date">${date}</span>
+      <button class="memo-del"
+        data-memo-id="${escHtml(memoId)}"
+        data-folder-id="${escHtml(m.folderId)}"
+        title="삭제">×</button>
+    `;
+
+    item.querySelector('.memo-left').addEventListener('click', () => openMemo(memoId, m.folderId));
+    item.querySelector('.memo-date').addEventListener('click', () => openMemo(memoId, m.folderId));
+    item.querySelector('.memo-del').addEventListener('click', e => {
+      e.stopPropagation();
+      deleteMemo(memoId, m.folderId, false);
+    });
+
+    memoListEl.appendChild(item);
+  });
+}
+
+/* ─ Sort buttons ─ */
+function applySortUI() {
+  sortByDate.classList.toggle('active', sortMode === 'date');
+  sortByName.classList.toggle('active', sortMode === 'name');
+}
+sortByDate.addEventListener('click', () => {
+  sortMode = 'date'; localStorage.setItem(K_SORT, sortMode);
+  applySortUI(); renderList();
+});
+sortByName.addEventListener('click', () => {
+  sortMode = 'name'; localStorage.setItem(K_SORT, sortMode);
+  applySortUI(); renderList();
+});
+applySortUI();
+
+/* ─ New memo ─ */
+btnNew.addEventListener('click', async () => {
+  let targetFolderId = currentFolderId;
+
+  if (targetFolderId === 'all') {
+    if (folders.length > 0) {
+      targetFolderId = folders[0].id;
+    } else {
+      // Auto-create default folder
+      if (!token) { openModal(); return; }
+      setListStatus('<span class="spinner"></span>기본 폴더 생성 중…', 'busy');
+      try {
+        const gId = await createFolderGist('기본');
+        const nf = { id: 'f' + Date.now(), name: '기본', gistId: gId };
+        folders.push(nf);
+        memosByFolder[nf.id] = {};
+        await updateMasterGist();
+        saveCache();
+        targetFolderId = nf.id;
+        renderFolderTabs();
+        setListStatus('동기화 완료 ✓', 'ok');
+      } catch(e) {
+        setListStatus('오류: ' + e.message, 'err');
+        showToast('폴더 생성 실패: ' + e.message);
+        return;
+      }
+    }
+  }
+
+  const memoId = 'm' + Date.now() + Math.random().toString(36).slice(2,5);
+  if (!memosByFolder[targetFolderId]) memosByFolder[targetFolderId] = {};
+  memosByFolder[targetFolderId][memoId] = { title: '', content: '', updatedAt: Date.now() };
+  openMemo(memoId, targetFolderId);
+});
+
+/* ════════════════════════════════
+   EDITOR — OPEN / SAVE / DELETE
+════════════════════════════════ */
+function openMemo(memoId, folderId) {
+  currentMemoId     = memoId;
+  currentMemoFolder = folderId;
+  const m = (memosByFolder[folderId] || {})[memoId] || {};
+  titleInput.value = m.title || '';
+  editor.value     = m.content || '';
+  updateCharInfo();
+  setEditorStatus('—', '');
+
+  // Reset view mode
+  if (isViewMode) resetViewMode();
+
+  showScreen('editor');
+  setTimeout(() => editor.focus(), 80);
+}
+
+function resetViewMode() {
+  isViewMode = false;
+  editor.classList.remove('hidden');
+  viewPanel.classList.add('hidden');
+  editorFooter.classList.remove('view-mode');
+  mdToolbar.classList.remove('hidden');
+  btnViewToggle.textContent = '보기';
+  btnViewToggle.classList.remove('active');
+  titleInput.readOnly = false;
+}
+
+let draftTimer = null;
+function saveDraft() {
+  if (!currentMemoId || !currentMemoFolder) return;
+  if (!memosByFolder[currentMemoFolder]) memosByFolder[currentMemoFolder] = {};
+  memosByFolder[currentMemoFolder][currentMemoId] = {
+    title:     titleInput.value.trim() || '제목 없음',
+    content:   editor.value,
+    updatedAt: Date.now()
+  };
+}
+
+editor.addEventListener('input', () => {
+  updateCharInfo();
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 400);
+});
+titleInput.addEventListener('input', () => {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(saveDraft, 400);
+});
+
+function updateCharInfo() {
+  charInfo.textContent = editor.value.length.toLocaleString() + '자';
+}
+
+btnSave.addEventListener('click', async () => {
+  if (!token) { openModal(); return; }
+  saveDraft();
+  await pushMemoToGist();
+});
+
+btnDelete.addEventListener('click', () => {
+  deleteMemo(currentMemoId, currentMemoFolder, true);
+});
+
+btnBack.addEventListener('click', () => {
+  if (isViewMode) resetViewMode();
+  saveDraft();
+  saveCache();
+  showScreen('list');
+  renderTagRow();
+  renderList();
+});
+
+async function pushMemoToGist() {
+  if (syncing) return;
+  syncing = true;
+  const origText = btnSave.textContent;
+  btnSave.textContent = '저장 중…';
+  setEditorStatus('저장 중…', 'busy');
+  try {
+    const f = folders.find(x => x.id === currentMemoFolder);
+    if (!f) throw new Error('폴더를 찾을 수 없습니다');
+    await updateFolderGist(f.gistId, memosByFolder[currentMemoFolder] || {});
+    saveCache();
+    setEditorStatus('저장됨 ✓', 'ok');
+    showToast('Gist에 저장되었습니다 ✓');
+  } catch(e) {
+    setEditorStatus('저장 실패', 'err');
+    showToast('저장 실패: ' + e.message);
+  } finally {
+    syncing = false;
+    btnSave.textContent = origText;
+  }
+}
+
+async function deleteMemo(memoId, folderId, fromEditor = false) {
+  const m = (memosByFolder[folderId] || {})[memoId];
+  const name = m?.title || '이 메모';
+  if (!confirm(`"${name}"를 삭제하시겠습니까?`)) return;
+
+  if (memosByFolder[folderId]) delete memosByFolder[folderId][memoId];
+
+  if (fromEditor) {
+    showScreen('list');
+    renderTagRow();
+    renderList();
+  } else {
+    renderTagRow();
+    renderList();
+  }
+
+  const f = folders.find(x => x.id === folderId);
+  if (token && f?.gistId) {
+    try {
+      await updateFolderGist(f.gistId, memosByFolder[folderId] || {});
+      saveCache();
+      showToast('메모가 삭제되었습니다');
+    } catch(e) { showToast('삭제 오류: ' + e.message); }
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { saveDraft(); saveCache(); }
+});
+
+/* ════════════════════════════════
+   VIEW MODE
+════════════════════════════════ */
+btnViewToggle.addEventListener('click', toggleViewMode);
+
+function toggleViewMode() {
+  isViewMode = !isViewMode;
+  if (isViewMode) {
+    saveDraft();
+    renderViewPanel();
+    editor.classList.add('hidden');
+    viewPanel.classList.remove('hidden');
+    editorFooter.classList.add('view-mode');
+    mdToolbar.classList.add('hidden');
+    btnViewToggle.textContent = '편집';
+    btnViewToggle.classList.add('active');
+    titleInput.readOnly = true;
+    window.scrollTo(0, 0);
+  } else {
+    resetViewMode();
+    setTimeout(() => editor.focus(), 80);
+  }
+}
+
+function renderViewPanel() {
+  const raw = editor.value;
+  if (!raw.trim()) {
+    viewPanel.innerHTML = '<span style="color:var(--ink-faint);font-style:italic">내용이 없습니다.</span>';
+    return;
+  }
+  const lines = raw.split('\n');
+  let html = '', inQuote = false;
+  lines.forEach(line => {
+    if (line.startsWith('> ')) {
+      if (!inQuote) { html += '<blockquote>'; inQuote = true; }
+      html += parseLine(line.slice(2)) + '<br>';
+      return;
+    }
+    if (inQuote) { html += '</blockquote>'; inQuote = false; }
+    if (line.startsWith('# '))  { html += `<h1 class="vp-h1">${parseLine(line.slice(2))}</h1>`; return; }
+    if (line.startsWith('## ')) { html += `<h2 class="vp-h2">${parseLine(line.slice(3))}</h2>`; return; }
+    if (line.trim() === '') { html += '<div class="vp-gap"></div>'; return; }
+    html += `<p class="vp-p">${parseLine(line)}</p>`;
+  });
+  if (inQuote) html += '</blockquote>';
+  viewPanel.innerHTML = html;
+}
+
+function parseLine(s) {
+  return s
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*\*(.+?)\*\*\*/g,'<strong><em>$1</em></strong>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/~~(.+?)~~/g,'<s>$1</s>')
+    .replace(/__(.+?)__/g,'<u>$1</u>')
+    .replace(/`(.+?)`/g,'<code class="vp-code">$1</code>');
+}
+
+/* ════════════════════════════════
+   MARKDOWN TOOLBAR
+════════════════════════════════ */
+const MD_MAP = {
+  bold:      { wrap: '**',  block: false },
+  italic:    { wrap: '*',   block: false },
+  strike:    { wrap: '~~',  block: false },
+  underline: { wrap: '__',  block: false },
+  code:      { wrap: '`',   block: false },
+  h1:        { prefix: '# ',  block: true },
+  h2:        { prefix: '## ', block: true },
+  quote:     { prefix: '> ',  block: true },
+};
+
+document.querySelectorAll('.md-btn').forEach(btn => {
+  btn.addEventListener('click', () => { applyMd(btn.dataset.md); editor.focus(); });
+});
+
+editor.addEventListener('keydown', e => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = editor.selectionStart;
+    editor.value = editor.value.slice(0,s) + '\t' + editor.value.slice(editor.selectionEnd);
+    editor.selectionStart = editor.selectionEnd = s + 1;
+    return;
+  }
+  const ctrl = e.ctrlKey || e.metaKey;
+  if (!ctrl) return;
+  const map = { b:'bold', i:'italic', d:'strike', u:'underline' };
+  if (map[e.key]) { e.preventDefault(); applyMd(map[e.key]); }
+});
+
+function applyMd(type) {
+  const cfg = MD_MAP[type];
+  if (!cfg) return;
+  const start  = editor.selectionStart;
+  const end    = editor.selectionEnd;
+  const sel    = editor.value.slice(start, end);
+  const before = editor.value.slice(0, start);
+  const after  = editor.value.slice(end);
+
+  if (cfg.block) {
+    const lineStart = before.lastIndexOf('\n') + 1;
+    const lineText  = editor.value.slice(lineStart, end || editor.value.length);
+    const already   = lineText.startsWith(cfg.prefix);
+    const newLine   = already ? lineText.slice(cfg.prefix.length) : cfg.prefix + lineText;
+    editor.value    = editor.value.slice(0, lineStart) + newLine + editor.value.slice(lineStart + lineText.length);
+    const newPos    = start + (already ? -cfg.prefix.length : cfg.prefix.length);
+    editor.selectionStart = editor.selectionEnd = Math.max(lineStart, newPos);
+  } else {
+    const w = cfg.wrap;
+    const already = sel.startsWith(w) && sel.endsWith(w) && sel.length >= w.length * 2;
+    let newSel, newStart, newEnd;
+    if (already) {
+      newSel = sel.slice(w.length, sel.length - w.length);
+      editor.value = before + newSel + after;
+      newStart = start; newEnd = start + newSel.length;
+    } else {
+      newSel = w + (sel || '텍스트') + w;
+      editor.value = before + newSel + after;
+      newStart = start + w.length;
+      newEnd   = newStart + (sel || '텍스트').length;
+    }
+    editor.selectionStart = newStart;
+    editor.selectionEnd   = newEnd;
+  }
+  saveDraft();
+  updateCharInfo();
+}
+
+/* ════════════════════════════════
+   FONT SIZE
+════════════════════════════════ */
+function applyFontSize() {
+  editor.style.fontSize     = fontSize + 'px';
+  viewPanel.style.fontSize  = fontSize + 'px';
+  fsVal.textContent         = fontSize;
+  btnFsMinus.disabled       = fontSize <= 10;
+  btnFsPlus.disabled        = fontSize >= 28;
+  btnFsMinus.style.opacity  = fontSize <= 10 ? '.3' : '1';
+  btnFsPlus.style.opacity   = fontSize >= 28 ? '.3' : '1';
+  localStorage.setItem(K_FS, fontSize);
+}
+
+btnFsMinus.addEventListener('click', () => {
+  const idx = FS_STEPS.indexOf(fontSize);
+  if (idx > 0) { fontSize = FS_STEPS[idx - 1]; applyFontSize(); }
+});
+btnFsPlus.addEventListener('click', () => {
+  const idx = FS_STEPS.indexOf(fontSize);
+  if (idx < FS_STEPS.length - 1) { fontSize = FS_STEPS[idx + 1]; applyFontSize(); }
+});
+applyFontSize();
+
+/* ════════════════════════════════
+   MODAL
+════════════════════════════════ */
+function openModal() {
+  inputToken.value = token;
+  inputMasterGistId.value = masterGistId;
+  overlay.classList.remove('hidden');
+  setTimeout(() => inputToken.focus(), 100);
+}
+function closeModal() { overlay.classList.add('hidden'); }
+
+logoBtn.addEventListener('click', openModal);
+btnCancel.addEventListener('click', closeModal);
+overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+
+btnConnect.addEventListener('click', async () => {
+  const t = inputToken.value.trim();
+  const g = inputMasterGistId.value.trim();
+  if (!t) { showToast('토큰을 입력해 주세요'); return; }
+  token        = t;
+  masterGistId = g;
+  localStorage.setItem(K_TOKEN, token);
+  if (masterGistId) localStorage.setItem(K_MASTER, masterGistId);
+  else localStorage.removeItem(K_MASTER);
+  closeModal();
+  showScreen('list');
+  await syncAll();
+});
+
+/* ════════════════════════════════
+   HELPERS
+════════════════════════════════ */
+function setListStatus(html, type) {
+  listSyncStatus.innerHTML = html;
+  listSyncStatus.className = 'list-sync-status' + (type ? ' ' + type : '');
+}
+function setEditorStatus(msg, type) {
+  editorStatus.textContent = msg;
+  editorStatus.className   = 'editor-status' + (type ? ' ' + type : '');
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2800);
+}
+
+function fmtDate(ts) {
+  const d   = new Date(ts);
+  const now = new Date();
+  const df  = now - d;
+  if (df < 60000)    return '방금 전';
+  if (df < 3600000)  return Math.floor(df/60000) + '분 전';
+  if (df < 86400000) return Math.floor(df/3600000) + '시간 전';
+  if (d.getFullYear() === now.getFullYear())
+    return (d.getMonth()+1) + '.' + d.getDate();
+  return d.getFullYear() + '.' + (d.getMonth()+1) + '.' + d.getDate();
+}
+
+function escHtml(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
